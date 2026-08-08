@@ -1,0 +1,80 @@
+# =============================================================================
+# TeamSync AI — Chat Service Configuration
+# =============================================================================
+
+spring:
+  application:
+    name: chat-service
+
+  # ── PostgreSQL (room/member metadata) ────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/teamsync_chat
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres123}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway owns the schema, Hibernate only validates
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # ── Flyway (schema migrations) ───────────────────────────────────────
+  flyway:
+    enabled: true
+
+  # ── Redis (sorted set message store) ─────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# ── Server ───────────────────────────────────────────────────────────────
+server:
+  port: 8083
+
+
+
+# ── Resilience4j (circuit breaker + retry for user-service calls) ────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      userService:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state:
+          seconds: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  retry:
+    instances:
+      userService:
+        max-attempts: 3
+        wait-duration:
+          millis: 200
+
+# ── Actuator (health, metrics, circuit breaker endpoints) ────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    tags:
+      application: chat-service
+
+# ── Logging (structured with MDC fields) ─────────────────────────────────
+logging:
+  level:
+    com.subh: DEBUG
+    org.springframework.messaging: INFO
+    io.github.resilience4j: DEBUG
+    # Feign debug logging (set to DEBUG to see full request/response)
+    com.subh.client: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{chatId:-}] [%X{userId:-}] %-5level %logger{36} - %msg%n"

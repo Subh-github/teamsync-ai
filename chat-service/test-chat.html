@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TeamSync Chat Tester</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+        .msg { margin-bottom: 5px; }
+        .sender { font-weight: bold; color: #0066cc; }
+    </style>
+</head>
+<body>
+    <h2>TeamSync Live Chat Tester</h2>
+    <div>
+        <label>Room ID:</label>
+        <input type="text" id="roomId" value="54d49ed1-2815-468a-b284-d68caece8acc" style="width: 300px;">
+        <button onclick="connect()">Connect</button>
+    </div>
+    <br>
+    <div id="messages"></div>
+    <div>
+        <input type="text" id="messageInput" placeholder="Type a message..." style="width: 300px;">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let stompClient = null;
+        const userId = "0f69028e-27c5-4dc9-aca1-6ea0928f3d15"; // Your User ID
+        const userName = "Subham"; // Your Name
+
+        function connect() {
+            const roomId = document.getElementById('roomId').value;
+            // Now that we are on a real web server (localhost:8085), SockJS will work perfectly!
+            const socket = new SockJS('http://localhost:8083/ws');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function (frame) {
+                console.log('Connected: ' + frame);
+                document.getElementById('messages').innerHTML += "<div class='msg' style='color:green;'>Connected to room: " + roomId + "</div>";
+                
+                // Subscribe to the room's topic
+                stompClient.subscribe('/topic/chat/' + roomId, function (messageOutput) {
+                    showMessage(JSON.parse(messageOutput.body));
+                });
+            }, function(error) {
+                console.error("Connection error: ", error);
+                document.getElementById('messages').innerHTML += "<div class='msg' style='color:red;'>Error connecting to WebSocket!</div>";
+            });
+        }
+
+        function sendMessage() {
+            const roomId = document.getElementById('roomId').value;
+            const messageContent = document.getElementById('messageInput').value;
+            
+            if (stompClient && stompClient.connected && messageContent) {
+                const chatMessage = {
+                    senderId: userId,
+                    senderName: userName,
+                    content: messageContent,
+                    type: "CHAT"
+                };
+                
+                // Send message to the server
+                stompClient.send("/app/chat/" + roomId, {}, JSON.stringify(chatMessage));
+                document.getElementById('messageInput').value = '';
+            } else {
+                alert("Please connect to the room first and type a message!");
+            }
+        }
+
+        function showMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += `<div class='msg'><span class='sender'>${message.senderName}:</span> ${message.content} <span style="color:gray;font-size:0.8em">(${new Date(message.timestamp).toLocaleTimeString()})</span></div>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

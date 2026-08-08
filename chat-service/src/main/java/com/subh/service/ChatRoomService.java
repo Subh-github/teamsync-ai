@@ -56,7 +56,7 @@ public class ChatRoomService {
                 .createdBy(dto.createdBy())
                 .build();
 
-        ChatRoom savedRoom = chatRoomRepository.save(room);
+        ChatRoom savedRoom = chatRoomRepository.saveAndFlush(room);
         log.info("Created chat room '{}' (id={}) by user {}", savedRoom.getName(),
                 savedRoom.getId(), savedRoom.getCreatedBy());
 
